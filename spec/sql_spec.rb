@@ -62,10 +62,24 @@ describe 'database' do
       ".exit",
     ]
     result = run_script(script)
-    exepect(result).to match_array([
+    expect(result).to match_array([
       "sql > 输入参数过长",
       "sql > 执行完毕",
-      "db > ",
+      "sql > ",
+    ])
+  end
+
+  it '如果id为负数则会报错' do
+    script = [
+      "insert -1 ankh ankh@ankh.com",
+      "select",
+      ".exit",
+    ]
+    result = run_script(script)
+    expect(result).to match_array([
+      "sql > ID必须为非负数",
+      "sql > 执行完毕",
+      "sql > ",
     ])
   end
 end

@@ -38,7 +38,9 @@ typedef enum {
 typedef enum {
     PREPARE_SUCCESS,
     PREPARE_UNRECOGNIZED_STATEMENT,
-    PREPARE_SYNTAX_ERROR
+    PREPARE_SYNTAX_ERROR,
+    PREPARE_STRING_TOO_LONG,
+    PREPARE_NEGATIVE_ID
 } PrepareResult;
 
 /**
@@ -206,6 +208,43 @@ MetaCommandResult do_meta_command(InputBuffer* input_buffer) {
     }
 }
 
+PrepareResult prepare_insert(InputBuffer* input_buffer, Statement* statement) {
+    statement->type = STATEMENT_INSERT;
+
+    // strtok用法，第一次使用的时候把str传进去，返回按分隔符分隔的第一个子字符串的地址
+    char* keyword = strtok(input_buffer->buffer, " ");
+    char* id_string = strtok(NULL, " ");
+    char* username = strtok(NULL, " ");
+    char* email = strtok(NULL, " ");
+
+    if (id_string == NULL || username == NULL || email == NULL) {
+        // 如果任何一个字段为空，则报错
+        return PREPARE_SYNTAX_ERROR;
+    }
+
+    // id字符串转数字
+    int id = atoi(id_string);
+    // 检查id
+    if (id < 0) {
+        return PREPARE_NEGATIVE_ID;
+    }
+    // 检查字段的长度
+    if (strlen(username) > COLUMN_USERNAME_SIZE){
+        return PREPARE_STRING_TOO_LONG;
+    }
+    if (strlen(email) > COLUMN_EMAIL_SIZE) {
+        return PREPARE_STRING_TOO_LONG;
+    }
+
+    // 运行到这里说明一切顺利，将字符串拷贝进statement
+    statement->row_to_insert.id = id;
+    strcpy(statement->row_to_insert.username, username);
+    strcpy(statement->row_to_insert.email, email);
+
+    return PREPARE_SUCCESS;
+}
+
+
 /**
  * 解析sql语句
  * @param input_buffer
@@ -217,19 +256,7 @@ PrepareResult prepare_statement(InputBuffer* input_buffer, Statement* statement)
     if (strncmp(input_buffer->buffer, "insert", 6) == 0) {
         // 只比较前6个字符，使用strncmp
         statement->type = STATEMENT_INSERT;
-
-        int args_assigned = sscanf(
-                input_buffer->buffer,
-                "insert %d %s %s",
-                &(statement->row_to_insert.id),
-                statement->row_to_insert.username,
-                statement->row_to_insert.email
-                );
-        if (args_assigned < 3) {
-            // 如果赋值的变量小于3个，说明有少赋值了一些属性，报错
-            return PREPARE_SYNTAX_ERROR;
-        }
-        return PREPARE_SUCCESS;
+        return prepare_insert(input_buffer, statement);
     }
     // 识别选择
     if (strcmp(input_buffer->buffer, "select") == 0) {
@@ -361,6 +388,12 @@ int main() {
                 break;
             case (PREPARE_SYNTAX_ERROR):
                 printf("语法错误，不能解析语句\n");
+                continue;
+            case (PREPARE_STRING_TOO_LONG):
+                printf("输入参数过长\n");
+                continue;
+            case (PREPARE_NEGATIVE_ID):
+                printf("ID必须为非负数\n");
                 continue;
             case (PREPARE_UNRECOGNIZED_STATEMENT):
                 printf("未识别关键字: '%s'.\n", input_buffer->buffer);

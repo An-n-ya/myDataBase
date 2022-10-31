@@ -52,4 +52,20 @@ describe 'database' do
       "sql > ",
     ])
   end
+
+  it '如果输入字段太长会报错' do
+    long_username = "a"*33
+    long_email = "1" * 256
+    script = [
+      "insert 1 #{long_username} #{long_email}",
+      "select",
+      ".exit",
+    ]
+    result = run_script(script)
+    expect(result).to match_array([
+      "sql > 输入参数过长",
+      "sql > 执行完毕",
+      "sql > ",
+    ])
+  end
 end
