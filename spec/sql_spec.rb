@@ -1,7 +1,10 @@
 describe 'database' do
+  before do
+    `rm -rf testdb.db`
+  end
   def run_script(commands)
     raw_output = nil
-    IO.popen("./cmake-build-debug/myDataBase", "r+") do |pipe|
+    IO.popen("./cmake-build-debug/myDataBase testdb.db", "r+") do |pipe|
       commands.each do |command|
         pipe.puts command
       end
@@ -80,6 +83,27 @@ describe 'database' do
       "sql > ID必须为非负数",
       "sql > 执行完毕",
       "sql > ",
+    ])
+  end
+
+  it '数据持久化测试' do
+    result1 = run_script([
+      "insert 1 user1 person1@bar.com",
+      ".exit"
+    ])
+    expect(result1).to match_array([
+      "sql > 执行完毕",
+      "sql > "
+    ])
+
+    result2 = run_script([
+      "select",
+      ".exit"
+    ])
+    expect(result2).to match_array([
+      "sql > (1, user1, person1@bar.com)",
+      "执行完毕",
+      "sql > "
     ])
   end
 end
