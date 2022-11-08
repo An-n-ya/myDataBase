@@ -1,0 +1,2 @@
+bin/rspec --format doc
+
